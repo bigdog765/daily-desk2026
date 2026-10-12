@@ -1,16 +1,17 @@
 {
   "name": "my-task-dashboard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/browser-qa.mjs"
   },
   "devDependencies": {
     "playwright": "1.58.2"
   },
   "dependencies": {
-    "openai": "7.31.0"
+    "ws": "8.22.0"
   }
 }

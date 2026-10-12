@@ -1,68 +1,58 @@
-# Daily Desk — API edition
+# Daily Desk — browser edition
 
-A local website for Robinhood Agent, Daily Briefing, and iPhone Deal Watch. It uses the official OpenAI Responses and Conversations APIs. The browser extension is no longer used.
+A local dashboard for your three existing ChatGPT conversations: Robinhood Agent, Daily Briefing, and iPhone Deal Watch.
 
-## Start
+This version uses an extension in your normal, signed-in Chrome or Edge browser. **OpenAI API generation is disabled.** There is no API SDK, API key setup, or paid API fallback. ChatGPT subscription limits still apply.
 
-Run **Start Dashboard.ps1**, then open **http://127.0.0.1:4317/** in any browser. Use **Stop Dashboard.ps1** to stop it. Alternatively, run `npm install` once and `npm start`. Node.js 22 or later is recommended.
+## Start and connect
 
-The server listens only on the local computer. It must remain running while requests are in progress.
+1. Run **Start Dashboard.ps1** in this project, then visit **http://127.0.0.1:4317/**.
+2. In the normal browser where you use ChatGPT, open `chrome://extensions` (Chrome) or `edge://extensions` (Edge).
+3. Disable or remove the old Daily Desk extension if present. Enable **Developer mode**, click **Load unpacked**, and select this project's **extension** folder. Connection setup on the dashboard shows its complete path and a Copy folder button.
+4. Keep that browser open and signed into the account that owns the linked conversations. The dashboard says **Browser connection ready** when connected.
 
-## API connection
+The dashboard itself can stay in the Codex in-app browser: the local server relays requests to the extension in your normal browser. You do not need to sign into ChatGPT inside the in-app browser. Sign-in or verification, if requested by ChatGPT, must be completed in your normal browser.
 
-Open **API settings** on the website. An existing `OPENAI_API_KEY` environment variable is used automatically. You can instead enter a key there and save it. The key is never returned to the browser. Saved credentials use Windows DPAPI protection for the current Windows user; on other systems they use a private file with owner-only permissions.
+Chrome/Edge 116 or newer is required. For later source updates, click **Reload** on this extension's card. Use **Reset browser pairing** on the dashboard when changing the installed extension or browser; disable the former extension first.
 
-**Check API connection** verifies access and creates three separate API conversations if they do not exist. Metadata access can succeed even when the API project has no generation credit. A failed run reports that billing problem explicitly.
+Use **Stop Dashboard.ps1** to stop this project's server. Alternatively, install dependencies with `npm install` and start with `npm start` (Node.js 22 or newer).
 
-Defaults:
-- Daily Briefing and iPhone Deal Watch: `gpt-5.4-mini`.
-- Robinhood Agent: `gpt-5.4`.
+## Buttons
 
-Both are configurable in API settings. Generation and web search are billed to the API project. Viewing a saved reply makes no model request.
+- **View conversation**: shows the last locally saved reply immediately, even when the extension is offline. It sends nothing and opens no chat tab.
+- **Sync latest**: reads the most recent completed reply in that existing chat. It sends no message.
+- **Run today**: sends exactly **Try again today** once to that chat and waits for a new completed reply after that message. It never displays an older reply as the new result.
+- **Response history**: opens prior locally saved replies, including labelled API archives from the previous version.
 
-## Use
+The extension temporarily opens an inactive tab for the selected ChatGPT conversation and closes only that tab when finished. It does not navigate or close your own tabs. The dashboard does not link to the ChatGPT interface.
 
-**View conversation** shows the latest locally saved reply immediately. **Response history** opens earlier API replies. **Run today** sends a new daily request to the same task's API conversation using its full instructions and the current New York date and time.
+Sending is confirmed by observing the new user message. Other drafts are preserved. Duplicate clicks reuse the current request. A dashboard page refresh resumes checking the same request. A server or extension restart with uncertain send status does **not** resubmit a prompt: use Sync latest before another Run today.
 
-The prompts are stored in `prompts/` and can be viewed in the website's **Task instructions** section. The Robinhood prompt was copied from the supplied trading instructions. The iPhone model-list typo was normalized to 16/17/18 Pro Max.
+A new reply can take several minutes. Sign-in, service limits, verification, missing conversation access, or changes to ChatGPT's page structure can stop a request. The dashboard reports the failure and retains the previous report. This browser integration depends on the ChatGPT interface and may need maintenance when it changes.
 
-All new daily runs request current web research. The iPhone task returns a private quiet-status marker when no new standout deal qualifies; the website records the check without a deal alert. No desktop notifications are created.
+## Existing tasks and prompts
 
-Daily Briefing and iPhone Deal Watch run in two steps in the same conversation. Research has a web-action allowance of 6 for the briefing or 8 for deals, including page opens and finds. Web search is required, and a run without any completed search cannot become a fresh daily report. Research uses low reasoning effort and a 6,000-token output budget, then a separate writing step gets its own 6,000-token budget with tools disabled. Research notes are not saved as a finished report. The website shows **Writing your report** during the second step.
+The three linked conversation IDs are in `extension/policy.js`; sending is also constrained to the same IDs in `extension/submit-retry.js`. These are your original ChatGPT chats, not the API conversations created by the previous edition.
 
-If research exhausts its token budget, the writing step can still summarize the collected evidence with a visible limited-coverage warning. It must disclose missing checks. An interrupted iPhone check cannot silently become a successful no-deal result. If writing also fails, the previous complete report stays available; there is no further automatic generation attempt. These two steps are API-billed, and token limits include reasoning as well as answer text.
+`prompts/` retains the instructions you supplied, and the website displays them for reference. The existing ChatGPT chats use their own conversation instructions. Editing a local prompt file does not change a ChatGPT thread; Run today sends only the short retry message.
 
-Refreshing the page reconnects to an existing run. Duplicate clicks for a running task reuse that run. When the server restarts with a known response ID, it retrieves that response rather than submitting it again. An unconfirmed creation request is not automatically resent.
+There is no new automatic schedule. Existing ChatGPT scheduled tasks are unchanged. The extension reads whatever completed response ChatGPT provides for the iPhone check, including a no-deal status if one is generated. It does not generate separate quiet-check messages or notifications.
 
-The original ChatGPT snapshots remain available, clearly labelled, until a task has its first API reply. They are not imported into the new API conversation. Existing ChatGPT schedules are not changed; this website currently runs tasks when you click **Run today**.
+Robinhood runs inside the existing ChatGPT conversation and its connected tools. The extension only types the requested prompt and reads the response. It does not click broker approvals, permission dialogs, or trade confirmation controls. If ChatGPT pauses for an approval, that requires attention in your normal browser.
 
-## Robinhood
+## Local data and security
 
-Choose **Connect Robinhood** in API settings to authorize the website's own connection through Robinhood's OAuth page. This is separate from the ChatGPT/Codex connector. The flow uses PKCE, a one-use state value, and the local callback `http://127.0.0.1:4317/oauth/robinhood/callback`. Tokens are saved with Windows credential protection and refreshed when needed.
+- `.local/extension-state.json`: paired extension identity, job status, send confirmation, and saved report history.
+- `.local/api-state.json`: retained API-era report data, read locally only during initial migration. API jobs are never resumed.
+- `data/imported.json`: original ChatGPT snapshots, if available.
+- `.local/server.log`, `.local/server-error.log`, `.local/server.pid`: local server lifecycle.
 
-Enter your intended brokerage account number in API settings before submitting an order. The model may research without an account selection, but the server blocks an order that does not match the chosen account.
+The new project does not load the old API key or Robinhood OAuth credentials. Local data, browser test profiles, and dependencies are excluded from Git. Keep report data private.
 
-The supplied research and trading rules are passed to the model on each run. Tool access is restricted to research/account reads and the stock preview/placement tools. The server blocks sells, unsupported order fields, extended-hours orders, orders over $20 notional, changed or expired previews, previews with broker alerts, and a second order attempt in the same run. It requires a broker quote disclosure and your review of the exact proposal on the website before approving a submission. Broker approval requirements still apply. Approving a proposal is not confirmation that it filled.
+The server binds to loopback, validates Host and request Origin, requires a per-session token for dashboard mutations, and uses expiring one-use credentials to authenticate the extension WebSocket. The first successfully connected extension is paired locally. Only the three configured task chats can be read or retriggered. No cookies or ChatGPT access tokens are read or exported.
 
-The prompt also requires verification of market holidays/early closes, settled buying power, fees, security eligibility, and the investment criteria. These checks depend on current broker/research data; a weekday time-window check alone does not establish that the market is open.
+## Tests and recoverable history
 
-No real trades are used in automated tests.
+`npm test` covers disabled API endpoints, private routes, authentication, preserved reports, duplicate requests, sync behavior, mismatched conversations, and restart recovery. `npm run test:browser` tests the actual extension against isolated mock ChatGPT pages; it sends no real prompts and places no trades. It uses the locally installed test Chromium, or an executable supplied through `CHROMIUM_PATH`.
 
-Robinhood retains its broker approval flow. A response-limit failure does not automatically replay or continue trading actions.
-
-## Data and maintenance
-
-- `.local/api-state.json`: conversation IDs, request progress, response history, and per-response diagnostics (phase, API status, exact incomplete reason/error code, token usage, configured limits, and tool counts). Usage on a saved report totals all steps in that run. Diagnostic metadata excludes credentials, broker arguments, and internal reasoning text. Diagnostics are also available on the local `/api/jobs/<job-id>` endpoint.
-- `.local/settings.json`: model preferences.
-- `.local/credentials.dpapi`: encrypted saved credentials on Windows.
-- `prompts/`: task instructions.
-- `data/imported.json` and `.local/responses.json`: earlier saved ChatGPT copies.
-
-New conversation messages are stored by the OpenAI API as well as locally. Private runtime files are not served as web assets. Do not publish this folder's private data. The retired Daily Desk extension can be removed from Chrome or Edge.
-
-## Validation
-
-Run `npm test`. Tests use simulated API/broker responses and cover persistent conversations, duplicate runs, saved reads, credentials, OAuth state/PKCE, order limits, explicit approval, restart recovery, billing errors, research-limit recovery, tool-free writing, exact failure diagnostics, and preservation of complete reports. Browser QA additionally checks refresh recovery, history, source rendering, quiet checks, mobile layout, and error states.
-
-References: [Responses API](https://developers.openai.com/api/reference/responses/overview), [conversation state](https://developers.openai.com/api/docs/guides/conversation-state), [web search](https://developers.openai.com/api/docs/guides/tools-web-search), and [MCP integration](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
-
+Git commit **e985677** preserves the API dashboard source before the extension restoration. View it with `git show e985677:<path>` or inspect `git log --oneline`. Runtime reports and credentials are intentionally outside Git.
