@@ -1,0 +1,16 @@
+{
+  "name": "my-task-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2"
+  },
+  "dependencies": {
+    "openai": "7.31.0"
+  }
+}
