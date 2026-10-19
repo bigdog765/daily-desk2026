@@ -29,7 +29,7 @@ export async function createBridge({server,privateDir,root,port,jobTimeoutMs=720
   const wss=new WebSocketServer({noServer:true,maxPayload:500000,handleProtocols:()=> 'daily-desk-v2'});
   const online=()=>client?.readyState===WebSocket.OPEN&&!!version;
   const jobView=job=>job?{...job}:null;
-  function connection(){return {mode:'extension',online:online(),version,paired:!!store.value.pairedOrigin,extensionPath:path.join(root,'extension'),apiEnabled:false};}
+  function connection(){return {mode:'extension',online:online(),version,updateRequired:!!version&&version!=='2.0.2',paired:!!store.value.pairedOrigin,extensionPath:path.join(root,'extension'),apiEnabled:false};}
   function bootstrap(origin,header){
     if(!extensionOrigin(origin)||header!=='1')throw problem('Only the installed Daily Desk extension can connect here.');
     if(store.value.pairedOrigin&&store.value.pairedOrigin!==origin)throw problem('Another extension is paired. Reset the browser connection on the dashboard first.');
@@ -59,7 +59,7 @@ export async function createBridge({server,privateDir,root,port,jobTimeoutMs=720
         if(client!==ws||closed)return;
         let message;try{message=JSON.parse(data);}catch{return;}
         if(message.type==='hello'){
-          if(message.version!=='2.0.0'){ws.close(1008,'Reload the updated Daily Desk extension');return;}
+          if(!['2.0.0','2.0.1','2.0.2'].includes(message.version)){ws.close(1008,'Reload the updated Daily Desk extension');return;}
           store.value.pairedOrigin=ws.extensionOrigin;await store.save();version=message.version;clearTimeout(helloTimer);
           ws.send(JSON.stringify({type:'ready'}));return;
         }
@@ -82,13 +82,20 @@ export async function createBridge({server,privateDir,root,port,jobTimeoutMs=720
           const history=store.value.tasks[job.taskId].history;
           let result=history.find(item=>item.id===fingerprint);
           if(!result){
-            result={id:fingerprint,chatId:raw.chatId,title:tasks.find(task=>task.id===job.taskId).title,text,sources,source:'chatgpt',format:'plain',fetchedAt:new Date().toISOString(),createdAt:job.action==='retry'?new Date().toISOString():null};
+            result={id:fingerprint,chatId:raw.chatId,title:tasks.find(task=>task.id===job.taskId).title,text,sources,source:'chatgpt',format:version==='2.0.2'?'markdown':'plain',fetchedAt:new Date().toISOString(),createdAt:job.action==='retry'?new Date().toISOString():null};
             history.push(result);if(history.length>200)history.splice(0,history.length-200);
-          }else result.fetchedAt=new Date().toISOString();
+          }else {result.fetchedAt=new Date().toISOString();if(version==='2.0.2')result.format='markdown';}
           job.result=result;job.stage='complete';if(job.action==='retry')job.submitted=true;
         }else{
           job.stage='error';job.error=typeof message.error==='string'?message.error.slice(0,1500):'The extension could not read a completed reply. Your saved response is still available.';
           if([true,false,'unknown'].includes(message.submitted))job.submitted=message.submitted;
+          if(message.diagnostics&&typeof message.diagnostics==='object'){
+            const raw=message.diagnostics;
+            job.diagnostics={};
+            for(const key of ['status','readyState','visibility'])if(typeof raw[key]==='string')job.diagnostics[key]=raw[key].slice(0,40);
+            for(const key of ['assistantCount','userCount','composerCount','conversationTurnCount','frameCount','bodyCharacters'])if(Number.isSafeInteger(raw[key])&&raw[key]>=0)job.diagnostics[key]=raw[key];
+            if(typeof raw.structure==='string')job.diagnostics.structure=raw.structure.slice(0,18000);
+          }
         }
         job.finishedAt=new Date().toISOString();await store.save();ws.send(JSON.stringify({type:'ack',id:job.id}));
       }).catch(()=>{ws.close(1011,'Could not save this update');});

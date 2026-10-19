@@ -1,20 +1,19 @@
+import {renderMarkdown,safeUrl} from './markdown.js';
+
 const $=selector=>document.querySelector(selector);
 const cards=[...document.querySelectorAll('[data-task]')],runButtons=[...document.querySelectorAll('[data-run]')];
 const watches=new Map(),pending=new Set();
 let state,selected=null,ticket=0,history=[];
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const date=value=>value?new Date(value).toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}):'';
-function safeUrl(value){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!['chatgpt.com','chat.openai.com'].some(host=>url.hostname===host||url.hostname.endsWith('.'+host))?url.href:null;}catch{return null;}}
-function inline(text){return escape(text).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(_match,label,value)=>{const url=safeUrl(value.replace(/&amp;/g,'&'));return url?'<a href="'+escape(url)+'" target="_blank" rel="noopener noreferrer">'+label+'</a>':label;}).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');}
-function markdown(text){return String(text).split(/\n\s*\n/).map(block=>'<p>'+inline(block).replace(/\n/g,'<br>')+'</p>').join('');}
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').hidden=true,10000);}
 async function get(url){const response=await fetch(url,{signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw new Error(data.error||'The local server is unavailable.');return data;}
 async function api(url,body={}){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Dashboard-Token':state.csrf},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw new Error(data.error||'The request failed.');return data;}
 function settingsView(){
   const connected=state.connection.online;
   $('#connection-dot').classList.toggle('live',connected);
-  $('#connection-label').textContent=connected?'Browser connection ready':'Browser extension offline';
-  $('#setup-status').textContent=connected?'Connected. New requests use your signed-in browser. Saved responses load locally.':'Install or reload the extension in your normal browser to sync chats or send today’s prompt. Saved reports still work.';
+  $('#connection-label').textContent=state.connection.updateRequired?'Reload browser extension':connected?'Browser connection ready':'Browser extension offline';
+  $('#setup-status').textContent=state.connection.updateRequired?'An extension update is ready. Click Reload on the Daily Desk extension in Chrome or Edge to apply the fixes.':connected?'Connected. New requests use your signed-in browser. Saved responses load locally.':'Install or reload the extension in your normal browser to sync chats or send today’s prompt. Saved reports still work.';
   $('#extension-path').textContent=state.connection.extensionPath;
 }
 async function refreshState(){state=await get('/api/state');settingsView();}
@@ -28,9 +27,9 @@ function render(result){
   $('#output-meta').hidden=result.source==='empty';
   $('#notice').textContent=result.warning||'';$('#notice').hidden=!result.warning;
   const content=document.createElement('div');content.className='response-text';
-  if(result.format==='plain'||result.source==='chatgpt'){const plain=document.createElement('div');plain.className='plain';plain.textContent=result.text||'';content.append(plain);}else content.innerHTML=markdown(result.text||'');
+  if(result.format==='plain'||(result.source==='chatgpt'&&result.format!=='markdown')){const plain=document.createElement('div');plain.className='plain';plain.textContent=result.text||'';content.append(plain);}else content.append(renderMarkdown(result.text));
   if(result.sources?.length){const links=document.createElement('div');links.className='response-sources';const seen=new Set();for(const source of result.sources){const url=safeUrl(source.url);if(!url||seen.has(url))continue;seen.add(url);const a=document.createElement('a');a.href=url;a.textContent=source.title||new URL(url).hostname;a.target='_blank';a.rel='noopener noreferrer';links.append(a,document.createTextNode(' · '));}content.append(links);}
-  if(result.unavailable&&result.previous){const details=document.createElement('details');details.open=true;const summary=document.createElement('summary');summary.textContent='Earlier available reply — '+date(result.previous.createdAt);const body=document.createElement('div');body.innerHTML=markdown(result.previous.text);details.append(summary,body);content.append(details);}
+  if(result.unavailable&&result.previous){const details=document.createElement('details');details.open=true;const summary=document.createElement('summary');summary.textContent='Earlier available reply — '+date(result.previous.createdAt);const body=document.createElement('div');if(result.previous.format==='plain'){body.className='plain';body.textContent=result.previous.text;}else body.append(renderMarkdown(result.previous.text));details.append(summary,body);content.append(details);}
   $('#response').replaceChildren(content);
 }
 async function loadHistory(id,viewTicket=ticket){const result=await get('/api/tasks/'+id+'/history');if(selected!==id||viewTicket!==ticket)return;history=result.items;const select=$('#history-select');select.replaceChildren();history.forEach((item,index)=>select.add(new Option(date(item.createdAt||item.fetchedAt)+(item.source==='api-archive'?' · API archive':''),String(index))));$('#history-label').hidden=!history.length;}

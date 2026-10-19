@@ -1,17 +1,23 @@
 {
   "name": "my-task-dashboard",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "private": true,
   "type": "module",
   "scripts": {
+    "build:reader": "node scripts/build-reader.mjs",
     "start": "node server.mjs",
     "test": "node --test test/*.test.mjs",
     "test:browser": "node test/browser-qa.mjs"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "playwright": "1.58.2"
   },
   "dependencies": {
+    "dompurify": "3.4.17",
+    "marked": "18.1.1",
+    "turndown": "7.2.4",
+    "turndown-plugin-gfm": "1.0.2",
     "ws": "8.22.0"
   }
 }

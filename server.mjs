@@ -15,7 +15,10 @@ export async function createDashboard({port=Number(process.env.PORT||4317),priva
   let bridge;
   function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(value));}
   async function body(req){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>32000)throw new Error('Too large');}return text?JSON.parse(text):{};}
-  const files={'/':['index.html','text/html'],'/setup':['index.html','text/html'],'/style.css':['style.css','text/css'],'/app.js':['app.js','text/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml']};
+  const files={'/':['index.html','text/html'],'/setup':['index.html','text/html'],'/style.css':['style.css','text/css'],'/app.js':['app.js','text/javascript'],'/markdown.js':['markdown.js','text/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],
+    '/vendor/marked.js':['../node_modules/marked/lib/marked.esm.js','text/javascript'],
+    '/response.css':['response.css','text/css'],
+    '/vendor/dompurify.js':['../node_modules/dompurify/dist/purify.es.mjs','text/javascript']};
   const server=http.createServer(async(req,res)=>{
     res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");

@@ -1,6 +1,7 @@
 import {allowedSender,taskFor,canRetry} from './policy.js';
 import {readResponse} from './read-response.js';
 import {submitRetry} from './submit-retry.js';
+import {inspectPage} from './page-state.js';
 const queues=new Map(),executions=new Map(),records=new Map();
 let socket=null,connecting=false,ready=false,writes=Promise.resolve();
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -14,7 +15,7 @@ const restored=(async()=>{
   const saved=await chrome.storage.local.get('executions');
   for(const entry of saved.executions||[]){
     if(entry.state==='running'){
-      entry.state='finished';entry.result={type:'result',id:entry.id,ok:false,submitted:'unknown',error:'The browser extension restarted during this request. It was not resent. Sync latest before sending another prompt.'};
+      entry.state='finished';entry.result={type:'result',id:entry.id,ok:false,submitted:entry.action==='read'?false:'unknown',error:'The browser extension restarted during this request. It was not resent. Sync latest before sending another prompt.'};
     }
     records.set(entry.id,entry);
   }
@@ -38,6 +39,20 @@ async function waitForPage(tabId,chatId){
   }
   throw new Error('The linked conversation did not load. Check your signed-in browser and its access to this chat.');
 }
+async function waitForConversation(tabId,chatId,action){
+  const deadline=Date.now()+45000;
+  let last;
+  while(Date.now()<deadline){
+    const snapshots=await chrome.scripting.executeScript({target:{tabId},func:inspectPage,args:[chatId]});
+    last=snapshots[0]?.result;
+    if(last?.error)throw Object.assign(new Error(last.error),{diagnostics:last.diagnostics});
+    if(action==='retry'?last?.diagnostics.composerCount:last?.diagnostics.assistantCount)return;
+    await wait(500);
+  }
+  const detail=last?.diagnostics;
+  const reason=detail?.conversationTurnCount?'The conversation loaded, but its message layout is not recognized by this extension.':detail?.bodyCharacters?'ChatGPT loaded a page, but the linked conversation did not become available.':'The ChatGPT tab stayed blank instead of loading the conversation.';
+  throw Object.assign(new Error(reason+' Your saved reply is unchanged.'),{diagnostics:detail});
+}
 async function run(job){
   const task=taskFor(job.taskId);
   if(!task||!['read','retry'].includes(job.action)||(job.action==='retry'&&!canRetry(job.taskId)))throw new Error('Unsupported task request.');
@@ -47,6 +62,8 @@ async function run(job){
     progress('loading');
     tab=await chrome.tabs.create({url:`https://chatgpt.com/c/${task.chatId}`,active:false});
     await waitForPage(tab.id,task.chatId);
+    await chrome.scripting.executeScript({target:{tabId:tab.id},files:['conversation-dom.js']});
+    await waitForConversation(tab.id,task.chatId,job.action);
     let after=null;
     if(job.action==='retry'){
       progress('sending');submitted='unknown';
@@ -62,7 +79,7 @@ async function run(job){
   }catch(error){
     let message=String(error.message||'The browser request failed.');
     if(job.action==='retry')message=(submitted===true?'“Try again today” was sent. ':submitted==='unknown'?'Send status is uncertain. Sync latest before trying again. ':'The prompt was not sent. ')+message;
-    return {type:'result',id:job.id,ok:false,error:message,submitted};
+    return {type:'result',id:job.id,ok:false,error:message,submitted,diagnostics:error.diagnostics};
   }finally{if(tab)await chrome.tabs.remove(tab.id).catch(()=>{});}
 }
 function accept(job){

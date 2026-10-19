@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Daily Desk — ChatGPT Browser Connection",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "minimum_chrome_version": "116",
   "description": "Read your three linked ChatGPT chats and send Try again today on request. No OpenAI API key or API generation.",
   "permissions": ["scripting", "alarms", "storage"],

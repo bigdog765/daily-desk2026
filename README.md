@@ -30,6 +30,12 @@ Sending is confirmed by observing the new user message. Other drafts are preserv
 
 A new reply can take several minutes. Sign-in, service limits, verification, missing conversation access, or changes to ChatGPT's page structure can stop a request. The dashboard reports the failure and retains the previous report. This browser integration depends on the ChatGPT interface and may need maintenance when it changes.
 
+Extension 2.0.2 checks the loaded page before reading or sending and distinguishes sign-in, browser verification, unavailable conversations, page errors, and an unrecognized conversation layout. Failed requests include page state, element counts, and a limited list of element labels and attributes in `.local/extension-state.json`; no cookies, tokens, or page transcript are collected. The packaged `extension/conversation-dom.js` reader is loaded on each request and shares layout detection between reading and sending. Reload the extension card in Chrome or Edge after updates to its background worker or manifest; the dashboard flags an older connected version.
+
+The reader supports both the older message attributes and the current Conversation region, user-message bubbles, and selection-marked Markdown replies. New syncs preserve headings, bold, italics, nested lists, tables, quotes, and code. The dashboard renders sanitized Markdown with source links and horizontally scrollable tables on small screens. Older plain-text snapshots remain readable as originally saved; Sync latest retrieves the formatting of the current reply without sending a prompt. The reader recognizes the Ask ChatGPT composer and limits Send-button compatibility to that composer. When ChatGPT combines multiple explicitly dated daily briefings in one rendered reply, the dashboard displays the final dated briefing.
+
+The shared reader source is `src/conversation-dom.js`. Run `npm run build:reader` after editing it to regenerate the checked-in `extension/conversation-dom.js` bundle. That packaged reader loads on the next sync without an extension reload. Formatting libraries are bundled or served locally; no CDN or API requests are involved.
+
 ## Existing tasks and prompts
 
 The three linked conversation IDs are in `extension/policy.js`; sending is also constrained to the same IDs in `extension/submit-retry.js`. These are your original ChatGPT chats, not the API conversations created by the previous edition.
