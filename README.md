@@ -2,7 +2,7 @@
 
 A local dashboard for your three existing ChatGPT conversations: Robinhood Agent, Daily Briefing, and iPhone Deal Watch.
 
-The interface uses a dark vaporwave theme with neon cyan, pink, and violet accents, static topographic contours, and a CSS sunset. Reports, tables, history, and connection controls share the dark palette. The layout adapts to mobile screens and respects reduced-motion preferences; all visual assets are local.
+The interface uses a light vaporwave theme with pearl and lavender surfaces, cyan, pink, and violet accents, static topographic contours, and a CSS sunset. Reports, tables, history, and connection controls share the light palette, with deeper accent colors for readable text. The layout adapts to mobile screens and respects reduced-motion preferences; all visual assets are local.
 
 This version uses an extension in your normal, signed-in Chrome or Edge browser. **OpenAI API generation is disabled.** There is no API SDK, API key setup, or paid API fallback. ChatGPT subscription limits still apply.
 
