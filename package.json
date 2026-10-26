@@ -7,7 +7,7 @@
     "build:reader": "node scripts/build-reader.mjs",
     "start": "node server.mjs",
     "test": "node --test test/*.test.mjs",
-    "test:browser": "node test/browser-qa.mjs"
+    "test:browser": "node test/browser-qa.mjs && node test/market-browser-qa.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

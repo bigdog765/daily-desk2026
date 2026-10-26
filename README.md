@@ -1,6 +1,6 @@
 # Daily Desk — browser edition
 
-A local dashboard for your three existing ChatGPT conversations: Robinhood Agent, Daily Briefing, and iPhone Deal Watch.
+A local dashboard for VOO and VB market quotes, plus your existing Daily Briefing and iPhone Deal Watch ChatGPT conversations.
 
 The interface uses a light vaporwave theme with pearl and lavender surfaces, cyan, pink, and violet accents, static topographic contours, and a CSS sunset. Reports, tables, history, and connection controls share the light palette, with deeper accent colors for readable text. The layout adapts to mobile screens and respects reduced-motion preferences; all visual assets are local.
 
@@ -18,6 +18,14 @@ The dashboard itself can stay in the Codex in-app browser: the local server rela
 Chrome/Edge 116 or newer is required. For later source updates, click **Reload** on this extension's card. Use **Reset browser pairing** on the dashboard when changing the installed extension or browser; disable the former extension first.
 
 Use **Stop Dashboard.ps1** to stop this project's server. Alternatively, install dependencies with `npm install` and start with `npm start` (Node.js 22 or newer).
+
+## Market watch
+
+VOO and VB load independently of the ChatGPT browser connection. Each shows its regular-session price in USD, dollar and percentage change versus the previous regular close, and a five-minute intraday chart. The dashed line marks the previous close; hover or use the chart slider with the keyboard to inspect prices.
+
+The local server reads Yahoo Finance’s public chart endpoint without an API key, paid service, or OpenAI call. This is an undocumented public feed, not a contracted API, and may change or be rate-limited. Quotes may be delayed; each displays the quote timestamp in Eastern Time. Previous sessions are dated explicitly, not labelled as today. Extended-hours prices are excluded.
+
+Quotes refresh every minute while the dashboard is visible, with a manual refresh button. The server shares a one-minute cache across tabs and limits failed retries too. On failure it labels the last successful in-memory quote as stale, or shows unavailable if none exists. Quote history is not persisted. API requests time out after eight seconds. The endpoint is limited to VOO and VB and accepts no arbitrary provider URL or symbol. No extension reload is needed for market watch or to retire Robinhood on the server.
 
 ## Buttons
 
@@ -42,13 +50,13 @@ Emphasis is preserved from both semantic HTML tags and ChatGPT's CSS-styled span
 
 ## Existing tasks and prompts
 
-The three linked conversation IDs are in `extension/policy.js`; sending is also constrained to the same IDs in `extension/submit-retry.js`. These are your original ChatGPT chats, not the API conversations created by the previous edition.
+The two linked conversation IDs are in `extension/policy.js`; sending is also constrained to the same IDs in `extension/submit-retry.js`. These are your original ChatGPT chats, not the API conversations created by the previous edition.
 
 `prompts/` retains the instructions you supplied, and the website displays them for reference. The existing ChatGPT chats use their own conversation instructions. Editing a local prompt file does not change a ChatGPT thread; Run today sends only the short retry message.
 
 There is no new automatic schedule. Existing ChatGPT scheduled tasks are unchanged. The extension reads whatever completed response ChatGPT provides for the iPhone check, including a no-deal status if one is generated. It does not generate separate quiet-check messages or notifications.
 
-Robinhood runs inside the existing ChatGPT conversation and its connected tools. The extension only types the requested prompt and reads the response. It does not click broker approvals, permission dialogs, or trade confirmation controls. If ChatGPT pauses for an approval, that requires attention in your normal browser.
+The Robinhood chat connection has been retired from the dashboard and extension allowlists. Its existing local history and prompt file are preserved, but the dashboard cannot read or send to that chat. The server enforces this even when an older extension is still loaded. The original ChatGPT chat, its tools, and any scheduled tasks are unchanged.
 
 ## Local data and security
 
@@ -59,10 +67,10 @@ Robinhood runs inside the existing ChatGPT conversation and its connected tools.
 
 The new project does not load the old API key or Robinhood OAuth credentials. Local data, browser test profiles, and dependencies are excluded from Git. Keep report data private.
 
-The server binds to loopback, validates Host and request Origin, requires a per-session token for dashboard mutations, and uses expiring one-use credentials to authenticate the extension WebSocket. The first successfully connected extension is paired locally. Only the three configured task chats can be read or retriggered. No cookies or ChatGPT access tokens are read or exported.
+The server binds to loopback, validates Host and request Origin, requires a per-session token for dashboard mutations, and uses expiring one-use credentials to authenticate the extension WebSocket. The first successfully connected extension is paired locally. Only the two configured task chats can be read or retriggered. No cookies or ChatGPT access tokens are read or exported.
 
 ## Tests and recoverable history
 
-`npm test` covers disabled API endpoints, private routes, authentication, preserved reports, duplicate requests, sync behavior, mismatched conversations, and restart recovery. `npm run test:browser` tests the actual extension against isolated mock ChatGPT pages; it sends no real prompts and places no trades. It uses the locally installed test Chromium, or an executable supplied through `CHROMIUM_PATH`.
+`npm test` covers market change calculations, session dates, invalid data, caching, timeouts, failures, retired Robinhood routes, disabled API endpoints, private routes, authentication, preserved reports, duplicate requests, sync behavior, mismatched conversations, and restart recovery. `npm run test:browser` tests the actual extension against isolated mock ChatGPT pages; it sends no real prompts and places no trades. It uses the locally installed test Chromium, or an executable supplied through `CHROMIUM_PATH`.
 
 Git commit **e985677** preserves the API dashboard source before the extension restoration. View it with `git show e985677:<path>` or inspect `git log --oneline`. Runtime reports and credentials are intentionally outside Git.

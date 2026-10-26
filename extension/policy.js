@@ -1,5 +1,4 @@
 export const tasks = Object.freeze({
-  robinhood:{title:'Robinhood Agent',chatId:'6aa2d72e-2a4c-83e9-b95a-7264914b4067'},
   briefing:{title:'Daily Briefing',chatId:'6a5a3671-1cc8-83ea-966f-7d6fe13d798f'},
   iphone:{title:'iPhone Deal Watch',chatId:'6aad3c40-08ac-83e9-bf5d-70c96bb2654d'}
 });

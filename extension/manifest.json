@@ -3,7 +3,7 @@
   "name": "Daily Desk — ChatGPT Browser Connection",
   "version": "2.0.2",
   "minimum_chrome_version": "116",
-  "description": "Read your three linked ChatGPT chats and send Try again today on request. No OpenAI API key or API generation.",
+  "description": "Read your Daily Briefing and iPhone chats and send Try again today on request. No OpenAI API key or API generation.",
   "permissions": ["scripting", "alarms", "storage"],
   "host_permissions": ["https://chatgpt.com/*", "http://127.0.0.1/*"],
   "background": {"service_worker":"background.js","type":"module"},

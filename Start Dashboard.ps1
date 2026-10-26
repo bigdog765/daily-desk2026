@@ -3,7 +3,7 @@ $dashboardRoot = $PSScriptRoot
 $dashboardUrl = 'http://127.0.0.1:4317'
 try {
     $state = Invoke-RestMethod -Uri "$dashboardUrl/api/state" -TimeoutSec 2
-    if ($state.tasks.Count -eq 3) { Start-Process $dashboardUrl; exit }
+    if ($state.connection.mode -eq 'extension') { Start-Process $dashboardUrl; exit }
 } catch {}
 $nodeCommand = (Get-Command node -ErrorAction Stop).Source
 $runtimePath = Join-Path $dashboardRoot '.local'

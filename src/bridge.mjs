@@ -74,7 +74,7 @@ export async function createBridge({server,privateDir,root,port,jobTimeoutMs=720
           await store.save();return;
         }
         if(message.type!=='result')return;
-        if(message.ok===true&&typeof message.result?.text==='string'&&message.result.text.trim()&&message.result.chatId===tasks.find(task=>task.id===job.taskId).chatId){
+        if(message.ok===true&&typeof message.result?.text==='string'&&message.result.text.trim()&&message.result.chatId===tasks.find(task=>task.id===job.taskId)?.chatId){
           const raw=message.result;
           const sources=(Array.isArray(raw.sources)?raw.sources:[]).filter(item=>typeof item?.url==='string'&&/^https?:\/\//.test(item.url)).slice(0,100).map(item=>({title:String(item.title||'Source').slice(0,300),url:item.url.slice(0,4000)}));
           const text=raw.text.slice(0,200000);

@@ -1,7 +1,7 @@
 // Self-contained DOM interaction. Only the exact user-requested message is sent.
 export async function submitRetry(chatId){
   const dom=globalThis.dailyDeskDOM;
-  const allowed=['6aa2d72e-2a4c-83e9-b95a-7264914b4067','6a5a3671-1cc8-83ea-966f-7d6fe13d798f','6aad3c40-08ac-83e9-bf5d-70c96bb2654d'];
+  const allowed=['6a5a3671-1cc8-83ea-966f-7d6fe13d798f','6aad3c40-08ac-83e9-bf5d-70c96bb2654d'];
   const prompt='Try again today';
   const matches=()=>allowed.includes(chatId)&&location.origin==='https://chatgpt.com'&&location.pathname==='/c/'+chatId;
   const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));

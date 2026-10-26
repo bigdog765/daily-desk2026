@@ -3,12 +3,15 @@ import {cp,readFile,writeFile,readdir,mkdtemp,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {createDashboard} from '../server.mjs';
+import {createMarket} from '../src/market.mjs';
+import {chartFixture,marketNow} from './market-fixture.mjs';
 const root=process.cwd();await mkdir(path.join(root,'work'),{recursive:true});
 const scratch=await mkdtemp(path.join(root,'work','extension-qa-'));
 const extension=path.join(scratch,'extension');await cp(path.join(root,'extension'),extension,{recursive:true});
 for(const name of await readdir(extension))if(/\.(js|json)$/.test(name)){const file=path.join(extension,name);await writeFile(file,(await readFile(file,'utf8')).replaceAll('4317','4319'));}
 const base='http://127.0.0.1:4319';
-const app=await createDashboard({port:4319,privateDir:path.join(scratch,'data')});
+const market=createMarket({now:()=>marketNow,fetchImpl:async url=>({ok:true,json:async()=>chartFixture(url.pathname.split('/').at(-1))})});
+const app=await createDashboard({port:4319,privateDir:path.join(scratch,'data'),market});
 await new Promise(resolve=>app.server.listen(4319,'127.0.0.1',resolve));
 const executablePath=process.env.CHROMIUM_PATH||path.join(process.env.LOCALAPPDATA||'','ms-playwright/chromium-1148/chrome-win/chrome.exe');
 let context,browser,scenario='success';const sends=[],errors=[],requests=[];
@@ -78,6 +81,17 @@ try {
  await page.goto(base);
  try{await page.waitForFunction(()=>document.querySelector('#connection-label').textContent==='Browser connection ready',null,{timeout:15000});}
  catch(error){console.log('CONNECTION',await (await fetch(base+'/api/state')).json());throw error;}
+ await page.waitForSelector('[data-symbol=VOO] .chart-line');
+ assert.equal(await page.locator('[data-task=robinhood],[data-run=robinhood]').count(),0);
+ assert.equal(await page.locator('[data-symbol=VOO] .stock-price').innerText(),'$606.00');
+ assert.equal(await page.locator('[data-symbol=VOO] .stock-change').innerText(),'+$6.00 (+1.00%)');
+ assert.equal(await page.locator('[data-symbol=VB] .stock-change').innerText(),'-$6.00 (-2.40%)');
+ assert.equal(await page.locator('.stock-chart svg').count(),2);
+ const slider=page.getByRole('slider',{name:'VOO chart time'});await slider.focus();await slider.press('Home');
+ assert.match(await slider.getAttribute('aria-valuetext'),/9:30 AM/);
+ await page.locator('#refresh-market').click();await page.waitForFunction(()=>!document.querySelector('#refresh-market').disabled);
+ assert.equal(sends.length,0);
+ console.log('PASS market quotes, signed gains/losses, charts, keyboard inspection and independent refresh');
  const worker=context.serviceWorkers()[0];
  const activeBefore=await worker.evaluate(async()=>(await chrome.tabs.query({active:true})).map(tab=>tab.id));
  app.bridge.history('briefing').push({id:'plain-fixture',format:'plain',source:'chatgpt',text:'**Original plain snapshot**\nSecond line.'});
@@ -90,7 +104,7 @@ try {
  await page.waitForFunction(()=>document.querySelector('#request-status').textContent==='Response is up to date.',null,{timeout:15000});
  assert.equal(sends.length,0);assert.match(await page.locator('#response').innerText(),/OLD SAVED RESPONSE/);
  console.log('PASS extension-free dashboard, instant saved reads, explicit sync with no prompt');
- for(const [id,chatId] of [['robinhood','6aa2d72e-2a4c-83e9-b95a-7264914b4067'],['iphone','6aad3c40-08ac-83e9-bf5d-70c96bb2654d'],['briefing','6a5a3671-1cc8-83ea-966f-7d6fe13d798f']]){
+ for(const [id,chatId] of [['iphone','6aad3c40-08ac-83e9-bf5d-70c96bb2654d'],['briefing','6a5a3671-1cc8-83ea-966f-7d6fe13d798f']]){
    await page.locator('[data-run="'+id+'"]').click();
    await page.waitForFunction(()=>document.querySelector('#request-status').textContent.includes('was sent'),null,{timeout:15000});
    assert.equal(await page.locator('[data-run="'+id+'"]').isDisabled(),true);
@@ -101,17 +115,17 @@ try {
    assert.ok(!(await page.locator('#response').innerText()).includes('OLD SAVED RESPONSE'));
    assert.deepEqual(sends.at(-1),{text:'Try again today',chatId});
  }
- assert.equal(sends.length,3);assert.equal(await page.locator('a[href*="chatgpt.com"],a[href*="chat.openai.com"]').count(),0);
+ assert.equal(sends.length,2);assert.equal(await page.locator('a[href*="chatgpt.com"],a[href*="chat.openai.com"]').count(),0);
  assert.equal(context.pages().filter(p=>p.url().startsWith('https://chatgpt.com/')).length,0);
- console.log('PASS exact prompt in all three chats, background tabs, reload recovery, no trade clicks or ChatGPT links');
+ console.log('PASS exact prompt in both chats, background tabs, reload recovery, no trade clicks or ChatGPT links');
  await page.screenshot({path:'work/extension-desktop.png',fullPage:true});
- scenario='draft';await page.locator('[data-run="robinhood"]').click();
+ scenario='draft';await page.locator('[data-run="briefing"]').click();
  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('draft'),null,{timeout:15000});
- assert.equal(sends.length,3);console.log('PASS unrelated draft preserved without sending');
+ assert.equal(sends.length,2);console.log('PASS unrelated draft preserved without sending');
  for(const [problem,expected] of [['signed-out','showing Log in'],['verification','verification screen'],['unavailable','conversation is unavailable']]){
    scenario=problem;await page.locator('[data-run="briefing"]').click();
    await page.waitForFunction(text=>document.querySelector('#notice').textContent.includes(text),expected,{timeout:15000});
-   assert.equal(sends.length,3);
+   assert.equal(sends.length,2);
    const last=app.bridge.state().lastRuns.briefing;
    assert.equal(app.bridge.getJob(last.id).diagnostics.status,problem);
    assert.equal(app.bridge.getJob(last.id).submitted,false);
@@ -119,11 +133,11 @@ try {
  console.log('PASS distinct sign-in, verification, and conversation-access errors without sending');
  scenario='modern';await page.locator('[data-run="briefing"]').click();
  await page.waitForFunction(()=>document.querySelector('#request-status').textContent==='New reply received.',null,{timeout:15000});
- assert.equal(sends.length,4);assert.match(await page.locator('#response').innerText(),/NEW WEBSITE REPLY/);
+ assert.equal(sends.length,3);assert.match(await page.locator('#response').innerText(),/NEW WEBSITE REPLY/);
  console.log('PASS turn-based messages and an Ask ChatGPT composer without the legacy element IDs');
  scenario='surface';await page.locator('[data-run="briefing"]').click();
  await page.waitForFunction(()=>document.querySelector('#request-status').textContent==='New reply received.',null,{timeout:15000});
- assert.equal(sends.length,5);assert.match(await page.locator('#response').innerText(),/NEW WEBSITE REPLY/);
+ assert.equal(sends.length,4);assert.match(await page.locator('#response').innerText(),/NEW WEBSITE REPLY/);
  assert.ok(!(await page.locator('#response').innerText()).includes('OLD SAVED RESPONSE'));
  assert.match(await page.locator('#response').innerText(),/NEW WEBSITE REPLY\n\nFirst paragraph\.\n\nSecond paragraph\./);
  console.log('PASS observed Conversation region, selection-marked replies, and user-message bubbles');
@@ -157,7 +171,7 @@ try {
  assert.match(await response.innerText(),/Literal \*stars\*, _underscores_, \[brackets\], <tag> & symbols\./);
  assert.ok(!(await response.innerText()).includes('HIDDEN CONTENT'));
  assert.equal(await response.locator('button,a[href*="chatgpt.com"]').count(),0);
- assert.equal(app.bridge.history('briefing').at(-1).format,'markdown');assert.equal(sends.length,5);
+ assert.equal(app.bridge.history('briefing').at(-1).format,'markdown');assert.equal(sends.length,4);
  await page.reload();await page.locator('[data-task="briefing"]').click();
  await page.waitForFunction(()=>!!document.querySelector('#response table'));
  assert.equal(await response.locator('strong em,em strong').filter({hasText:'both together'}).innerText(),'both together');
@@ -191,7 +205,7 @@ try {
  await page.waitForFunction(()=>document.querySelector('#connection-label').textContent.includes('offline'),null,{timeout:10000});
  await page.locator('[data-run="iphone"]').click();
  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('offline'),null,{timeout:10000});
- assert.equal(sends.length,5);console.log('PASS durable delivery receipts, mobile layout, explicit offline errors, zero API calls');
+ assert.equal(sends.length,4);console.log('PASS durable delivery receipts, mobile layout, explicit offline errors, zero OpenAI API calls');
 } catch(error) {
  console.log('FAILURE STATE',JSON.stringify(app.bridge.state()));
  for(const tab of context?.pages()||[])console.log('PAGE',tab.url(),await tab.locator('body').innerText().catch(()=>'<unavailable>'));

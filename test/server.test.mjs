@@ -22,13 +22,14 @@ async function connect(){
 before(async()=>{
   folder=await mkdtemp(path.join(os.tmpdir(),'daily-desk-extension-'));
   await writeFile(path.join(folder,'api-state.json'),JSON.stringify({tasks:{briefing:{history:[{responseId:'old-api',text:'Saved API report',source:'api'}]}}}));
+  await writeFile(path.join(folder,'extension-state.json'),JSON.stringify({tasks:{robinhood:{history:[{id:'retired-report',text:'Preserve my Robinhood archive'}]}},jobs:[],pairedOrigin:null}));
   app=await createDashboard({port:4318,privateDir:folder});await new Promise(resolve=>app.server.listen(4318,'127.0.0.1',resolve));state=await get('/api/state');
 });
 after(async()=>{ws?.terminate();await app.close();});
 
 test('dashboard preserves prior replies locally and disables every API generation entry point',async()=>{
   assert.equal(state.connection.mode,'extension');assert.equal(state.connection.apiEnabled,false);
-  assert.equal(state.tasks.length,3);assert.equal(state.connection.online,false);
+  assert.equal(state.tasks.length,2);assert.equal(state.connection.online,false);
   const saved=await (await post('/api/tasks/briefing/saved')).json();assert.equal(saved.text,'Saved API report');assert.equal(saved.source,'api-archive');
   for(const route of ['/api/settings','/api/initialize','/api/robinhood/connect','/api/robinhood/disconnect'])assert.equal((await post(route)).status,410);
   const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));assert.equal(pkg.dependencies.openai,undefined);
@@ -75,7 +76,7 @@ test('sync sends no prompt, de-duplicates the same reply, and rejects a mismatch
   assert.equal((await (await post('/api/tasks/iphone/saved')).json()).text,'A new ChatGPT reply');
 });
 test('uncertain send is not replayed after a server restart; saved reports and pairing survive',async()=>{
-  const job=await (await post('/api/tasks/robinhood/run')).json();await until(()=>received.find(message=>message.id===job.id));
+  const job=await (await post('/api/tasks/briefing/run')).json();await until(()=>received.find(message=>message.id===job.id));
   ws.send(JSON.stringify({type:'progress',id:job.id,stage:'sending'}));await until(async()=>(await get('/api/jobs/'+job.id)).submitted==='unknown');
   await app.close();ws.terminate();
   app=await createDashboard({port:4318,privateDir:folder});await new Promise(resolve=>app.server.listen(4318,'127.0.0.1',resolve));state=await get('/api/state');
@@ -83,4 +84,14 @@ test('uncertain send is not replayed after a server restart; saved reports and p
   const count=received.filter(message=>message.type==='job').length;await connect();await wait(30);
   assert.equal(received.filter(message=>message.type==='job').length,count);
   assert.equal((await (await post('/api/tasks/iphone/saved')).json()).text,'A new ChatGPT reply');
+});
+
+test('retired Robinhood routes cannot read or dispatch chat requests, even with an older connected extension',async()=>{
+  const count=received.filter(message=>message.type==='job').length;
+  for(const action of ['run','retry','read','refresh','saved'])assert.equal((await post('/api/tasks/robinhood/'+action)).status,404);
+  for(const action of ['history','prompt'])assert.equal((await fetch(base+'/api/tasks/robinhood/'+action)).status,404);
+  assert.equal(received.filter(message=>message.type==='job').length,count);
+  await assert.rejects(app.bridge.start('robinhood','retry'),/Unknown task/);
+  const stored=JSON.parse(await readFile(path.join(folder,'extension-state.json'),'utf8'));
+  assert.equal(stored.tasks.robinhood.history[0].text,'Preserve my Robinhood archive');
 });

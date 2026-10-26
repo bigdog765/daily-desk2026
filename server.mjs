@@ -5,8 +5,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {createBridge} from './src/bridge.mjs';
 import {tasks,loadPrompts} from './src/tasks.mjs';
+import {createMarket} from './src/market.mjs';
 
-export async function createDashboard({port=Number(process.env.PORT||4317),privateDir,jobTimeoutMs}={}){
+export async function createDashboard({port=Number(process.env.PORT||4317),privateDir,jobTimeoutMs,market=createMarket()}={}){
   const root=path.dirname(fileURLToPath(import.meta.url));
   privateDir??=process.env.DAILY_DESK_DATA_DIR||path.join(root,'.local');
   await mkdir(privateDir,{recursive:true});
@@ -16,6 +17,7 @@ export async function createDashboard({port=Number(process.env.PORT||4317),priva
   function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(value));}
   async function body(req){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>32000)throw new Error('Too large');}return text?JSON.parse(text):{};}
   const files={'/':['index.html','text/html'],'/setup':['index.html','text/html'],'/style.css':['style.css','text/css'],'/app.js':['app.js','text/javascript'],'/markdown.js':['markdown.js','text/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],
+    '/market.js':['market.js','text/javascript'],'/market.css':['market.css','text/css'],
     '/vendor/marked.js':['../node_modules/marked/lib/marked.esm.js','text/javascript'],
     '/response.css':['response.css','text/css'],
     '/vendor/dompurify.js':['../node_modules/dompurify/dist/purify.es.mjs','text/javascript']};
@@ -31,6 +33,7 @@ export async function createDashboard({port=Number(process.env.PORT||4317),priva
       if(req.method==='POST'&&(![origin,'http://localhost:'+port].includes(req.headers.origin)||req.headers['x-dashboard-token']!==csrf))return json(res,403,{error:'Use the local dashboard to perform this action.'});
       if(Number(req.headers['content-length']||0)>32000)return json(res,413,{error:'Request too large.'});
       if(req.method==='GET'&&url.pathname==='/api/state')return json(res,200,{tasks,csrf,connection:bridge.connection(),...bridge.state()});
+      if(req.method==='GET'&&url.pathname==='/api/market')return json(res,200,await market.get());
       if(req.method==='POST'&&url.pathname==='/api/bridge/reset'){await body(req);await bridge.reset();return json(res,200,{ok:true});}
       if(req.method==='POST'&&['/api/initialize','/api/settings','/api/robinhood/connect','/api/robinhood/disconnect'].includes(url.pathname))return json(res,410,{error:'API generation is disabled. This dashboard uses the browser extension.'});
       const jobMatch=url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)$/);

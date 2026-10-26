@@ -1,4 +1,7 @@
 import {renderMarkdown,safeUrl} from './markdown.js';
+import {initMarketPanel} from './market.js';
+
+initMarketPanel();
 
 const $=selector=>document.querySelector(selector);
 const cards=[...document.querySelectorAll('[data-task]')],runButtons=[...document.querySelectorAll('[data-run]')];
