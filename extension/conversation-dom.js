@@ -852,20 +852,40 @@ SOFTWARE.
       const start = briefingTitles.length > 1 ? briefingTitles.at(-1) : null;
       const user = node.matches("[data-user-message-bubble]") || selectors("user").some((selector) => node.matches(selector));
       if (!user) {
-        let copy = function(element) {
+        let copy = function(element, formatting = { bold: false, italic: false, code: false }) {
           if (start && element !== start && !element.contains(start) && element.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING) return null;
-          if (element.nodeType === Node.TEXT_NODE) return element.cloneNode();
+          if (element.nodeType === Node.TEXT_NODE) {
+            let clone3 = element.cloneNode();
+            if (!element.textContent.trim() || formatting.code) return clone3;
+            const style2 = getComputedStyle(element.parentElement);
+            if (!formatting.italic && /^(italic|oblique)/.test(style2.fontStyle)) {
+              const emphasis = document.createElement("em");
+              emphasis.append(clone3);
+              clone3 = emphasis;
+            }
+            if (!formatting.bold && Number.parseFloat(style2.fontWeight) >= 600) {
+              const strong = document.createElement("strong");
+              strong.append(clone3);
+              clone3 = strong;
+            }
+            return clone3;
+          }
           if (element.nodeType !== Node.ELEMENT_NODE) return null;
           if (element.matches('button,[role="toolbar"],.sr-only,[aria-hidden="true"],script,style,iframe,svg,img')) return null;
           const style = getComputedStyle(element);
           if (style.display === "none" || style.visibility === "hidden") return null;
           if (element.tagName === "TABLE" && !element.rows.length) return null;
           const clone2 = element.cloneNode(false);
+          const childFormatting = {
+            bold: formatting.bold || element.matches("strong,b,h1,h2,h3,h4,h5,h6,th"),
+            italic: formatting.italic || element.matches("em,i"),
+            code: formatting.code || element.matches("pre,code")
+          };
           for (const attr of [...clone2.attributes]) if (!["href", "title", "start", "colspan", "rowspan", "align", "class"].includes(attr.name)) clone2.removeAttribute(attr.name);
           if (element.tagName === "A" && element.hasAttribute("href")) clone2.setAttribute("href", element.href);
           for (const child of element.childNodes) {
             if (["TABLE", "THEAD", "TBODY", "TFOOT", "TR"].includes(element.tagName) && child.nodeType === Node.TEXT_NODE && !child.textContent.trim()) continue;
-            const next2 = copy(child);
+            const next2 = copy(child, childFormatting);
             if (next2) clone2.append(next2);
           }
           return clone2;

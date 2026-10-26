@@ -6,7 +6,7 @@
 .response-text :is(h4,h5,h6){font-size:16px}
 .response-text>:first-child{margin-top:0}
 .response-text p{margin:0 0 1em}
-.response-text :is(strong,b){font-weight:650;color:#433051}
+.response-text :is(strong,b){font-weight:700;color:#433051}
 .response-text :is(em,i){font-style:italic}
 .response-text :is(ul,ol){padding-left:1.7em;margin:.6em 0 1.2em}
 .response-text li{padding-left:.25em;margin:.35em 0}

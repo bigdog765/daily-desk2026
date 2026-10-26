@@ -38,6 +38,8 @@ The reader supports both the older message attributes and the current Conversati
 
 The shared reader source is `src/conversation-dom.js`. Run `npm run build:reader` after editing it to regenerate the checked-in `extension/conversation-dom.js` bundle. That packaged reader loads on the next sync without an extension reload. Formatting libraries are bundled or served locally; no CDN or API requests are involved.
 
+Emphasis is preserved from both semantic HTML tags and ChatGPT's CSS-styled spans. The reader inspects rendered font weight and italics before converting the response to Markdown, including inherited styling, while keeping code and retry-prompt confirmation literal. If an older saved reply lost emphasis, Sync latest recovers it from the current chat.
+
 ## Existing tasks and prompts
 
 The three linked conversation IDs are in `extension/policy.js`; sending is also constrained to the same IDs in `extension/submit-retry.js`. These are your original ChatGPT chats, not the API conversations created by the previous edition.

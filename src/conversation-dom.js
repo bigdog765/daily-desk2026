@@ -72,19 +72,38 @@ import {gfm} from 'turndown-plugin-gfm';
     if(!user){
       // Filter the live DOM before conversion so hidden controls and prior
       // grouped reports cannot leak into the saved reply. Never mutate the chat.
-      function copy(element){
+      function copy(element,formatting={bold:false,italic:false,code:false}){
         if(start&&element!==start&&!element.contains(start)&&(element.compareDocumentPosition(start)&Node.DOCUMENT_POSITION_FOLLOWING))return null;
-        if(element.nodeType===Node.TEXT_NODE)return element.cloneNode();
+        if(element.nodeType===Node.TEXT_NODE){
+          let clone=element.cloneNode();
+          // Some ChatGPT layouts use styled spans instead of strong/em tags.
+          // Read the actual appearance before cloning strips the page's CSS.
+          // Respect semantic ancestors and leave code/literal asterisks alone.
+          if(!element.textContent.trim()||formatting.code)return clone;
+          const style=getComputedStyle(element.parentElement);
+          if(!formatting.italic&&/^(italic|oblique)/.test(style.fontStyle)){
+            const emphasis=document.createElement('em');emphasis.append(clone);clone=emphasis;
+          }
+          if(!formatting.bold&&Number.parseFloat(style.fontWeight)>=600){
+            const strong=document.createElement('strong');strong.append(clone);clone=strong;
+          }
+          return clone;
+        }
         if(element.nodeType!==Node.ELEMENT_NODE)return null;
         if(element.matches('button,[role="toolbar"],.sr-only,[aria-hidden="true"],script,style,iframe,svg,img'))return null;
         const style=getComputedStyle(element);if(style.display==='none'||style.visibility==='hidden')return null;
         if(element.tagName==='TABLE'&&!element.rows.length)return null;
         const clone=element.cloneNode(false);
+        const childFormatting={
+          bold:formatting.bold||element.matches('strong,b,h1,h2,h3,h4,h5,h6,th'),
+          italic:formatting.italic||element.matches('em,i'),
+          code:formatting.code||element.matches('pre,code')
+        };
         for(const attr of [...clone.attributes])if(!['href','title','start','colspan','rowspan','align','class'].includes(attr.name))clone.removeAttribute(attr.name);
         if(element.tagName==='A'&&element.hasAttribute('href'))clone.setAttribute('href',element.href);
         for(const child of element.childNodes){
           if(['TABLE','THEAD','TBODY','TFOOT','TR'].includes(element.tagName)&&child.nodeType===Node.TEXT_NODE&&!child.textContent.trim())continue;
-          const next=copy(child);if(next)clone.append(next);
+          const next=copy(child,childFormatting);if(next)clone.append(next);
         }
         return clone;
       }

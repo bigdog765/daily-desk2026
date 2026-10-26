@@ -13,6 +13,11 @@ await new Promise(resolve=>app.server.listen(4319,'127.0.0.1',resolve));
 const executablePath=process.env.CHROMIUM_PATH||path.join(process.env.LOCALAPPDATA||'','ms-playwright/chromium-1148/chrome-win/chrome.exe');
 let context,browser,scenario='success';const sends=[],errors=[],requests=[];
 const richReply=`<h1>Daily Briefing</h1><p>A <strong>bold update</strong> and <em>italic context</em>, with <strong><em>both together</em></strong>.</p>
+<style>.styled-bold{font-weight:600}.styled-italic{font-style:italic}.styled-both{font-weight:700;font-style:italic}</style>
+<p><span class="styled-bold">CSS bold label</span> and <span class="styled-italic">CSS italic context</span>.</p>
+<p class="styled-bold"><span>Inherited bold subtitle</span></p>
+<p><span class="styled-both">CSS combined emphasis</span></p>
+<p class="styled-bold"><code>literal_code *</code> <strong>Semantic bold stays single</strong></p>
 <h2>Local opportunities</h2><h3>Tonight in Royal Oak</h3><ul><li>First opportunity<ul><li>Nested detail</li></ul></li><li>Second opportunity</li></ul>
 <ol start="3"><li>Compare prices</li><li>Check requirements</li></ol><blockquote><p>Worth remembering.</p></blockquote><hr>
 <table><thead><tr><th>Model</th><th>Price</th><th>Requirements</th></tr></thead><tbody><tr><td><strong>iPhone 17</strong></td><td>$599 | $699</td><td>Unlocked<br>No plan change</td></tr><tr><td>iPhone 16</td><td>$499</td><td><em>Refurbished</em></td></tr></tbody></table>
@@ -133,7 +138,14 @@ try {
  assert.equal(await response.locator('h1').innerText(),'Daily Briefing');
  assert.equal(await response.locator('h2').innerText(),'Local opportunities');
  assert.equal(await response.locator('h3').innerText(),'Tonight in Royal Oak');
- assert.equal(await response.locator('strong em,em strong').innerText(),'both together');
+ assert.equal(await response.locator('strong em,em strong').filter({hasText:'both together'}).innerText(),'both together');
+ assert.equal(await response.locator('strong').filter({hasText:'CSS bold label'}).count(),1);
+ assert.equal(await response.locator('em').filter({hasText:'CSS italic context'}).count(),1);
+ assert.equal(await response.locator('strong').filter({hasText:'Inherited bold subtitle'}).count(),1);
+ assert.equal(await response.locator('strong em,em strong').filter({hasText:'CSS combined emphasis'}).count(),1);
+ assert.equal(await response.locator('strong strong,em em').count(),0);
+ assert.equal(await response.locator('code').filter({hasText:'literal_code *'}).innerText(),'literal_code *');
+ assert.equal(await response.locator('strong').filter({hasText:'CSS bold label'}).evaluate(node=>getComputedStyle(node).fontWeight),'700');
  assert.equal(await response.locator('ul ul li').innerText(),'Nested detail');
  assert.equal(await response.locator('ol').getAttribute('start'),'3');
  assert.equal(await response.locator('blockquote').innerText(),'Worth remembering.');
@@ -148,7 +160,8 @@ try {
  assert.equal(app.bridge.history('briefing').at(-1).format,'markdown');assert.equal(sends.length,5);
  await page.reload();await page.locator('[data-task="briefing"]').click();
  await page.waitForFunction(()=>!!document.querySelector('#response table'));
- assert.equal(await response.locator('strong em,em strong').innerText(),'both together');
+ assert.equal(await response.locator('strong em,em strong').filter({hasText:'both together'}).innerText(),'both together');
+ assert.equal(await response.locator('strong').filter({hasText:'CSS bold label'}).count(),1);
  // Exercise hostile Markdown/HTML separately from the conversation fixtures.
  assert.deepEqual(await page.evaluate(async()=>{
    const {renderMarkdown}=await import('/markdown.js');
