@@ -6,6 +6,7 @@ import {chartFixture,marketNow} from './market-fixture.mjs';
 test('daily change uses the previous regular close, including negative moves',()=>{
   const up=parseChart('VOO',chartFixture('VOO'),marketNow),down=parseChart('VB',chartFixture('VB'),marketNow);
   assert.equal(up.price,606);assert.equal(up.change,6);assert.equal(up.changePercent,1);
+  assert.equal(up.points.at(-1).price,up.price);assert.equal(down.points.at(-1).price,down.price);
   assert.equal(down.price,244);assert.equal(down.change,-6);assert.equal(down.changePercent,-2.4);
   assert.equal(up.sessionDate,'2026-10-26');assert.equal(up.marketState,'open');assert.equal(up.delayed,false);
   const payload=chartFixture();delete payload.chart.result[0].meta.previousClose;

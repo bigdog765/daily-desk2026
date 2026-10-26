@@ -26,8 +26,11 @@ export function parseChart(symbol, payload, now=Date.now()) {
     positive(time)&&positive(values[index])&&time<=meta.regularMarketTime&&dateKey(time)===sessionDate&&
     (!quoteInPeriod || (time>=regular.start && time<=regular.end))
       ?[[time,{time,price:values[index]}]]:[])).values()].sort((a,b)=>a.time-b.time);
-  if(quoteInPeriod && points.length && points.at(-1).time<meta.regularMarketTime)
-    points.push({time:meta.regularMarketTime,price:meta.regularMarketPrice});
+  if(quoteInPeriod && points.length){
+    // Candle closes arrive as float32 values; the current quote is more precise.
+    if(points.at(-1).time===meta.regularMarketTime)points.at(-1).price=meta.regularMarketPrice;
+    else points.push({time:meta.regularMarketTime,price:meta.regularMarketPrice});
+  }
   const marketOpen=hasPeriod&&now/1000>=regular.start&&now/1000<regular.end;
   const awaitingSession=marketOpen&&sessionDate!==dateKey(regular.start);
   // Remove subtraction noise (288.335 - 287.22 becomes 1.114999...) so
