@@ -8,7 +8,7 @@ This version uses an extension in your normal, signed-in Chrome or Edge browser.
 
 ## Start and connect
 
-1. Run **Start Dashboard.ps1** in this project, then visit **http://127.0.0.1:4317/**.
+1. Run **Start Dashboard.ps1** (In powershell: & ".\Start Dashboard.ps1") in this project, then visit **http://127.0.0.1:4317/**. 
 2. In the normal browser where you use ChatGPT, open `chrome://extensions` (Chrome) or `edge://extensions` (Edge).
 3. Disable or remove the old Daily Desk extension if present. Enable **Developer mode**, click **Load unpacked**, and select this project's **extension** folder. Connection setup on the dashboard shows its complete path and a Copy folder button.
 4. Keep that browser open and signed into the account that owns the linked conversations. The dashboard says **Browser connection ready** when connected.
